@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>파이썬 수행평가 100제 · 클래스 &amp; 정규표현식</title>
+<style>
+:root{
+  --ink:#14213d;--muted:#5b6b8c;--paper:#f6f7fb;--card:#fff;
+  --line:#e4e8f1;--accent:#5b3df5;--accent-soft:#ece8ff;
+  --ok:#0f9d58;--ok-soft:#e6f6ec;--no:#e5484d;--no-soft:#fdecec;
+  --warn:#d97706;--warn-soft:#fef3c7;
+  --code-bg:#11162a;--code-fg:#e7ecff;
+  --mono:ui-monospace,SFMono-Regular,"Cascadia Code",Consolas,monospace;
+  --sans:"Pretendard",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+  line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:880px;margin:0 auto;padding:0 18px 120px}
+
+/* ── START MODAL ── */
+#startOverlay{position:fixed;inset:0;z-index:100;background:var(--paper);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:24px}
+.start-box{background:var(--card);border:1px solid var(--line);border-radius:20px;
+  padding:32px 28px;max-width:480px;width:100%;box-shadow:0 8px 40px rgba(20,33,61,.10)}
+.start-eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 10px}
+.start-box h1{font-size:24px;margin:0 0 6px;letter-spacing:-.01em}
+.start-box .sub{color:var(--muted);font-size:14px;margin:0 0 24px}
+.start-box label{display:block;font-size:13px;font-weight:600;
+  color:var(--muted);margin-bottom:6px}
+.start-box input[type=text]{width:100%;font:inherit;padding:11px 13px;
+  border:1.5px solid var(--line);border-radius:10px;background:var(--paper);
+  font-size:15px;color:var(--ink);margin-bottom:20px}
+.start-box input[type=text]:focus{outline:2px solid var(--accent);
+  outline-offset:1px;border-color:transparent}
+.time-label{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px}
+.time-opts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+.topt{font:inherit;font-size:13px;font-weight:600;padding:8px 16px;
+  border-radius:999px;border:1.5px solid var(--line);background:var(--card);
+  cursor:pointer;color:var(--muted);transition:all .15s}
+.topt.sel{background:var(--ink);color:#fff;border-color:var(--ink)}
+.start-btn{width:100%;font:inherit;font-size:16px;font-weight:700;
+  background:var(--accent);color:#fff;border:none;border-radius:12px;
+  padding:15px;cursor:pointer;letter-spacing:-.01em}
+.start-btn:hover{filter:brightness(1.06)}
+.start-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.warn-msg{font-size:12px;color:var(--no);margin-top:8px;display:none}
+
+/* ── QUIZ LAYOUT ── */
+#app{display:none}
+header{padding:32px 0 18px;border-bottom:2px solid var(--ink)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 8px}
+h1.main{font-size:clamp(22px,4.5vw,36px);line-height:1.12;margin:0 0 6px;letter-spacing:-.01em}
+h1.main small{display:block;font-size:.48em;font-weight:500;color:var(--muted);margin-top:6px}
+.meta-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.tag{font-family:var(--mono);font-size:12px;background:var(--accent-soft);
+  color:var(--accent);padding:4px 10px;border-radius:999px;font-weight:600}
+.tag.alt{background:#eef1f7;color:var(--muted)}
+.name-display{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:10px}
+.name-display b{color:var(--ink)}
+
+/* ── HUD ── */
+.hud{position:sticky;top:0;z-index:30;background:rgba(246,247,251,.92);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:9px 0;margin-top:12px}
+.hud-inner{max-width:880px;margin:0 auto;padding:0 18px;
+  display:flex;align-items:center;gap:12px}
+.progress{flex:1;height:7px;background:#e4e8f1;border-radius:999px;overflow:hidden}
+.progress>i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+.hud .pcount{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.timer-box{font-family:var(--mono);font-weight:700;font-size:14px;white-space:nowrap;
+  padding:4px 10px;border-radius:8px;background:var(--accent-soft);color:var(--accent)}
+.timer-box.warn{background:var(--warn-soft);color:var(--warn)}
+.timer-box.crit{background:var(--no-soft);color:var(--no);animation:pulse 1s infinite}
+.timer-box.none{display:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.hud .score-disp{font-family:var(--mono);font-weight:700;font-size:13px;
+  white-space:nowrap;display:none}
+.hud .score-disp.show{display:block;color:var(--accent)}
+.submitted-badge{font-family:var(--mono);font-size:12px;font-weight:700;
+  background:var(--ok-soft);color:var(--ok);padding:4px 10px;border-radius:8px;display:none}
+.submitted-badge.show{display:block}
+
+/* ── FILTERS ── */
+.filters{display:flex;flex-wrap:wrap;gap:7px;margin:18px 0 6px}
+.fbtn{font:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  border:1px solid var(--line);background:var(--card);color:var(--muted);
+  padding:6px 14px;border-radius:999px}
+.fbtn[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.fbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ── PART HEADING ── */
+.part{margin:30px 0 2px;display:flex;align-items:baseline;gap:10px}
+.part .pno{font-family:var(--mono);color:var(--accent);font-weight:700;font-size:14px}
+.part h2{font-size:19px;margin:0;letter-spacing:-.01em}
+.part .pc{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:auto}
+
+/* ── QUESTION CARD ── */
+.q{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:15px 17px;margin:10px 0;position:relative}
+.q.hidden{display:none}
+.q .head{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+.q .num{font-family:var(--mono);font-weight:700;font-size:13px;color:var(--ink);
+  background:var(--paper);border:1px solid var(--line);border-radius:7px;
+  width:32px;height:26px;display:grid;place-items:center;flex:none}
+.q .badge{font-family:var(--mono);font-size:10.5px;color:var(--muted);
+  border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+.q .badge.cls{color:#0a7d6b;border-color:#bfe7df;background:#eafaf6}
+.q .badge.rgx{color:var(--accent);border-color:#d7cffb;background:var(--accent-soft)}
+.q .status{margin-left:auto;font-size:13px;font-weight:700;font-family:var(--mono)}
+.q .qtext{font-size:15px;margin:0 0 9px;word-break:keep-all}
+pre{margin:0 0 11px;background:var(--code-bg);color:var(--code-fg);
+  font-family:var(--mono);font-size:12.5px;line-height:1.55;
+  padding:13px 15px;border-radius:10px;overflow-x:auto;tab-size:4}
+.ans{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ans input{font:var(--mono);font-family:var(--mono);font-size:14px;padding:9px 12px;
+  border:1.5px solid var(--line);border-radius:9px;background:var(--paper);
+  width:100%;max-width:420px;color:var(--ink)}
+.ans input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+.ans input:disabled{opacity:.7;cursor:not-allowed;background:#f0f0f0}
+.ans .hintbtn{font:inherit;font-size:12px;color:var(--accent);background:none;
+  border:none;cursor:pointer;text-decoration:underline;padding:3px}
+.hint{font-size:13px;color:var(--muted);margin-top:7px;display:none}
+.hint.show{display:block}
+.result{margin-top:9px;font-size:13px;display:none}
+.result.show{display:block}
+.result .label{font-family:var(--mono);font-weight:700}
+.result code{font-family:var(--mono);background:var(--paper);border:1px solid var(--line);
+  padding:1px 5px;border-radius:5px}
+.q.correct{border-color:#bfe7d2;background:var(--ok-soft)}
+.q.correct .status{color:var(--ok)}
+.q.wrong{border-color:#f3c8c8;background:var(--no-soft)}
+.q.wrong .status{color:var(--no)}
+.q.correct .ans input,.q.wrong .ans input{background:#fff}
+
+/* ── SUMMARY ── */
+.summary{display:none;background:var(--ink);color:#fff;border-radius:16px;
+  padding:24px 22px;margin:18px 0}
+.summary.show{display:block}
+.summary h3{margin:0 0 4px;font-size:14px;font-family:var(--mono);
+  color:#aeb9da;font-weight:600;letter-spacing:.04em}
+.big{font-size:44px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.big span{font-size:19px;color:#9fb0d8;font-weight:600}
+.bars{margin-top:16px;display:grid;gap:9px}
+.bar-row{display:grid;grid-template-columns:120px 1fr 56px;gap:9px;
+  align-items:center;font-size:12.5px}
+.bar-row .nm{color:#cdd6ea;font-weight:600}
+.bar-track{height:8px;background:#26314f;border-radius:999px;overflow:hidden}
+.bar-track>i{display:block;height:100%;background:var(--accent);border-radius:999px}
+.bar-row .vl{font-family:var(--mono);text-align:right;color:#fff}
+.wronglist{margin-top:14px;font-size:12.5px;color:#cdd6ea;line-height:1.7}
+.wronglist b{color:#fff}
+.copybox{margin-top:13px;width:100%;font-family:var(--mono);font-size:12px;
+  background:#0d1224;color:#cdd6ea;border:1px solid #26314f;
+  border-radius:10px;padding:10px 12px;resize:vertical}
+
+/* ── ACTION BAR ── */
+.actions{position:fixed;left:0;right:0;bottom:0;z-index:40;background:#fff;
+  border-top:1px solid var(--line);padding:11px 18px;
+  box-shadow:0 -6px 24px rgba(20,33,61,.07)}
+.actions-inner{max-width:880px;margin:0 auto;display:flex;gap:9px;align-items:center}
+.btn{font:inherit;font-weight:700;cursor:pointer;border-radius:10px;
+  padding:11px 18px;border:1px solid transparent}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{filter:brightness(1.06)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;filter:none}
+.btn-ghost{background:#fff;color:var(--ink);border-color:var(--line)}
+.btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.actions .left{font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-right:auto}
+
+@media(max-width:560px){
+  .bar-row{grid-template-columns:76px 1fr 44px}
+  .btn{padding:10px 12px;font-size:14px}
+  .hud .pcount{display:none}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ── START MODAL ── -->
+<div id="startOverlay">
+  <div class="start-box">
+    <p class="start-eyebrow">Python 수행평가 100제</p>
+    <h1>시험 시작</h1>
+    <p class="sub">클래스(40) + 정규표현식(60) · 단답형<br>시작하면 문항이 무작위로 배열됩니다.</p>
+    <label for="snameIn">이름 / 학번</label>
+    <input type="text" id="snameIn" placeholder="예: 1-3 12번 홍길동" autocomplete="off">
+    <p id="nameWarn" class="warn-msg">이름/학번을 입력해 주세요.</p>
+    <p class="time-label">제한 시간 선택</p>
+    <div class="time-opts" id="timeOpts">
+      <button class="topt" data-s="1800">30분</button>
+      <button class="topt" data-s="2700">45분</button>
+      <button class="topt sel" data-s="3600">60분</button>
+      <button class="topt" data-s="5400">90분</button>
+      <button class="topt" data-s="0">제한없음</button>
+    </div>
+    <button class="start-btn" id="startBtn">시험 시작하기 →</button>
+  </div>
+</div>
+
+<!-- ── QUIZ APP ── -->
+<div id="app">
+  <div class="hud">
+    <div class="hud-inner">
+      <div class="progress"><i id="pbar"></i></div>
+      <span class="pcount" id="pcount">0 / 100</span>
+      <span class="timer-box none" id="timerBox">60:00</span>
+      <span class="submitted-badge" id="subBadge">✓ 제출 완료</span>
+      <span class="score-disp" id="scoreDisp"></span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <header>
+      <p class="eyebrow">Python 수행평가 · 단답형 100제</p>
+      <h1 class="main">클래스 &amp; 정규표현식 100제
+        <small>객체지향 기초부터 정규표현식 실전까지</small>
+      </h1>
+      <div class="meta-row">
+        <span class="tag">Part 1 · 클래스 40문항</span>
+        <span class="tag">Part 2 · 정규표현식 60문항</span>
+        <span class="tag alt">자동 채점</span>
+        <span class="tag alt" id="shuffleTag">문항 셔플됨</span>
+      </div>
+      <p class="name-display">응시자: <b id="nameShow"></b></p>
+    </header>
+
+    <div class="filters" role="group" aria-label="문항 필터">
+      <button class="fbtn" data-f="all" aria-pressed="true">전체 100</button>
+      <button class="fbtn" data-f="class" aria-pressed="false">클래스 40</button>
+      <button class="fbtn" data-f="regex" aria-pressed="false">정규표현식 60</button>
+      <button class="fbtn" data-f="todo" aria-pressed="false">안 푼 문항</button>
+      <button class="fbtn" data-f="wrong" aria-pressed="false">틀린 문항</button>
+    </div>
+
+    <div id="summary" class="summary" aria-live="polite">
+      <h3>채점 결과</h3>
+      <div class="big"><span id="sscoretxt">0</span> <span>/ 100점</span></div>
+      <div class="bars" id="bars"></div>
+      <div class="wronglist" id="wrongtxt"></div>
+      <textarea class="copybox" id="copybox" rows="2" readonly aria-label="제출용 결과 텍스트"></textarea>
+    </div>
+
+    <div id="list"></div>
+  </div>
+
+  <div class="actions">
+    <div class="actions-inner">
+      <span class="left" id="leftnote">미응답 100문항</span>
+      <button class="btn btn-ghost" id="resetBtn">다시 풀기</button>
+      <button class="btn btn-primary" id="gradeBtn">채점하기</button>
+    </div>
+  </div>
+</div>
+
+<script id="qdata" type="application/json">[{"id": 1, "cat": "class", "ch": 1, "q": "클래스를 붕어빵에 비유할 때, '붕어빵 틀'에 해당하는 것은?", "code": "", "accept": ["클래스", "class"], "m": "ci", "explain": "틀=클래스, 찍어낸 붕어빵=객체(인스턴스)."}, {"id": 2, "cat": "class", "ch": 1, "q": "클래스라는 틀로 찍어낸 '붕어빵 한 개'에 해당하는 것은?", "code": "", "accept": ["객체", "object", "인스턴스", "instance"], "m": "ci", "explain": "틀로 만든 실체가 객체(인스턴스)."}, {"id": 3, "cat": "class", "ch": 1, "q": "객체가 생성될 때 자동으로 실행되어 초기화를 담당하는 메서드의 이름은?", "code": "", "accept": ["__init__"], "m": "ci", "explain": "인스턴스 생성 시 자동 호출되는 초기화 메서드."}, {"id": 4, "cat": "class", "ch": 1, "q": "students = [[\"Alice\",85],[\"Bob\",92]] 일 때, Bob의 점수 92에 접근하는 표현은?", "code": "", "accept": ["students[1][1]"], "m": "loose", "explain": "Bob은 인덱스 1, 점수는 그 안의 인덱스 1."}, {"id": 5, "cat": "class", "ch": 1, "q": "다음 코드의 출력은?", "code": "class Student:\n    def __init__(self, name, score):\n        self.name = name\n        self.score = score\nalice = Student(\"Alice\", 85)\nprint(alice.name, alice.score)", "accept": ["Alice 85"], "m": "loose", "explain": "name, score 속성이 그대로 출력."}, {"id": 6, "cat": "class", "ch": 2, "q": "클래스를 정의할 때 사용하는 키워드는?", "code": "", "accept": ["class"], "m": "ci", "explain": ""}, {"id": 7, "cat": "class", "ch": 2, "q": "__init__의 첫 번째 매개변수로 반드시 와야 하는 것은?", "code": "", "accept": ["self"], "m": "ci", "explain": ""}, {"id": 8, "cat": "class", "ch": 2, "q": "클래스 본문에 '아무 내용 없음'을 나타낼 때 쓰는 키워드는?", "code": "", "accept": ["pass"], "m": "ci", "explain": ""}, {"id": 9, "cat": "class", "ch": 2, "q": "def __init__(name, score): 처럼 self를 빠뜨리고 인스턴스를 만들면 발생하는 에러의 종류는?", "code": "", "accept": ["TypeError"], "m": "ci", "explain": "인자 개수가 맞지 않아 TypeError."}, {"id": 10, "cat": "class", "ch": 2, "q": "__init__처럼 앞뒤로 밑줄 두 개가 붙은 특수 메서드를 부르는 별명은?", "code": "", "accept": ["던더", "던더메서드", "dunder", "dundermethod"], "m": "ci", "explain": "double underscore → dunder(던더)."}, {"id": 11, "cat": "class", "ch": 2, "q": "__init__의 init 앞에 붙은 밑줄(_)의 개수는?", "code": "", "accept": ["2", "두개", "둘"], "m": "ci", "explain": ""}, {"id": 12, "cat": "class", "ch": 2, "q": "self가 가리키는 대상을 한 마디로 말하면?", "code": "", "accept": ["객체자신", "자기자신", "인스턴스자신", "자신", "나자신"], "m": "ci", "explain": ""}, {"id": 13, "cat": "class", "ch": 2, "q": "다음 코드의 출력은?", "code": "class Student:\n    def __init__(self, name, score):\n        self.name = name\n        self.score = score\nbob = Student(\"Bob\", 78)\nprint(bob.score)", "accept": ["78"], "m": "loose", "explain": ""}, {"id": 14, "cat": "class", "ch": 3, "q": "클래스 안에 def로 정의한 함수를 부르는 용어는?", "code": "", "accept": ["메서드", "method"], "m": "ci", "explain": ""}, {"id": 15, "cat": "class", "ch": 3, "q": "메서드를 정의할 때 첫 번째 매개변수는 항상 무엇인가?", "code": "", "accept": ["self"], "m": "ci", "explain": ""}, {"id": 16, "cat": "class", "ch": 3, "q": "다음 코드의 출력은?", "code": "class Hero:\n    def __init__(self, name, hp):\n        self.name = name\n        self.hp = hp\n    def heal(self, amount):\n        self.hp += amount\nh = Hero(\"아린\", 100)\nh.heal(20)\nprint(h.hp)", "accept": ["120"], "m": "loose", "explain": "heal로 hp가 100+20=120."}, {"id": 17, "cat": "class", "ch": 3, "q": "def greet(): 처럼 self 없이 정의한 메서드를 hero.greet()로 호출하면 나는 에러 종류는?", "code": "", "accept": ["TypeError"], "m": "ci", "explain": "hero가 자동 전달되는데 받을 자리가 없어 TypeError."}, {"id": 18, "cat": "class", "ch": 3, "q": "hero.greet() 호출 시 self 자리에 자동으로 들어가는 객체는?", "code": "", "accept": ["hero"], "m": "ci", "explain": ""}, {"id": 19, "cat": "class", "ch": 3, "q": "self를 통해 속성에 접근할 수 있는 것은 '함수'와 '메서드' 중 무엇인가?", "code": "", "accept": ["메서드", "method"], "m": "ci", "explain": ""}, {"id": 20, "cat": "class", "ch": 3, "q": "다음 코드의 출력은?", "code": "class Hero:\n    def __init__(self, name, hp):\n        self.name = name\n        self.hp = hp\n    def attack(self, damage):\n        print(f\"{self.name}이(가) {damage} 데미지!\")\nHero(\"아린\", 100).attack(30)", "accept": ["아린이(가) 30 데미지!"], "m": "loose", "explain": ""}, {"id": 21, "cat": "class", "ch": 4, "q": "__init__ 밖에 선언해 모든 인스턴스가 공유하는 변수의 종류는?", "code": "", "accept": ["클래스변수", "classvariable"], "m": "ci", "explain": ""}, {"id": 22, "cat": "class", "ch": 4, "q": "self.로 선언해 인스턴스마다 독립적으로 갖는 변수의 종류는?", "code": "", "accept": ["인스턴스변수", "instancevariable"], "m": "ci", "explain": ""}, {"id": 23, "cat": "class", "ch": 4, "q": "다음 코드의 출력은?", "code": "class AIModel:\n    model_count = 0\n    def __init__(self, name):\n        self.name = name\n        AIModel.model_count += 1\na = AIModel(\"ResNet\")\nb = AIModel(\"BERT\")\nprint(AIModel.model_count)", "accept": ["2"], "m": "loose", "explain": "인스턴스 2개 생성 → 클래스 변수 2."}, {"id": 24, "cat": "class", "ch": 4, "q": "다음 코드의 출력은?", "code": "class DataSet:\n    size = 1000\n    def __init__(self, name):\n        self.name = name\nds1 = DataSet(\"훈련셋\")\nds2 = DataSet(\"검증셋\")\nds1.size = 500\nprint(ds2.size)", "accept": ["1000"], "m": "loose", "explain": "ds1.size=500은 ds1만의 인스턴스 변수를 새로 만들 뿐, ds2는 1000 유지."}, {"id": 25, "cat": "class", "ch": 4, "q": "위 문제에서 ds1.size = 500은 클래스 변수를 바꾸는 게 아니라 ds1만의 새 ( )를 만든다. 빈칸은?", "code": "", "accept": ["인스턴스변수", "instancevariable"], "m": "ci", "explain": ""}, {"id": 26, "cat": "class", "ch": 4, "q": "클래스 변수를 모든 인스턴스에 반영되게 바꾸려면 '무엇.size = 값' 형태로 접근해야 하나? (DataSet 예시에서)", "code": "", "accept": ["DataSet", "클래스명", "클래스이름"], "m": "ci", "explain": ""}, {"id": 27, "cat": "class", "ch": 4, "q": "다음 코드의 출력은?", "code": "class AIModel:\n    model_count = 0\n    def __init__(self, name, accuracy):\n        self.name = name\n        self.accuracy = accuracy\n        AIModel.model_count += 1\na = AIModel(\"ResNet\", 0.92)\nprint(a.accuracy)", "accept": ["0.92"], "m": "loose", "explain": ""}, {"id": 28, "cat": "class", "ch": 5, "q": "class Dog(Animal): 에서 부모(상위) 클래스는?", "code": "", "accept": ["Animal"], "m": "ci", "explain": ""}, {"id": 29, "cat": "class", "ch": 5, "q": "부모의 메서드를 자식에서 같은 이름으로 다시 정의하는 것을 무엇이라 하나?", "code": "", "accept": ["오버라이딩", "overriding", "메서드오버라이딩", "메소드오버라이딩"], "m": "ci", "explain": ""}, {"id": 30, "cat": "class", "ch": 5, "q": "자식 클래스에서 부모의 생성자/메서드를 호출할 때 쓰는 함수는?", "code": "", "accept": ["super", "super()", "슈퍼"], "m": "ci", "explain": ""}, {"id": 31, "cat": "class", "ch": 5, "q": "다음 코드의 출력은?", "code": "class Animal:\n    def __init__(self, name):\n        self.name = name\n    def speak(self):\n        print(f\"{self.name}이 소리를 냅니다\")\nclass Dog(Animal):\n    pass\nDog(\"멍멍이\").speak()", "accept": ["멍멍이이 소리를 냅니다"], "m": "loose", "explain": "Dog에 speak 없어 부모 Animal의 speak 사용."}, {"id": 32, "cat": "class", "ch": 5, "q": "다음 코드의 출력은?", "code": "class Animal:\n    def __init__(self, name):\n        self.name = name\n    def speak(self):\n        print(f\"{self.name}이 소리를 냅니다\")\nclass Cat(Animal):\n    def speak(self):\n        print(f\"{self.name}: 야옹~\")\nCat(\"나비\").speak()", "accept": ["나비: 야옹~"], "m": "loose", "explain": "Cat이 speak를 오버라이딩했으므로 자식 것이 실행."}, {"id": 33, "cat": "class", "ch": 5, "q": "자식 __init__에서 super().__init__(name)을 빼고 self.name에 접근하면 나는 에러 종류는?", "code": "", "accept": ["AttributeError"], "m": "ci", "explain": "부모 __init__이 실행되지 않아 name 속성이 없음."}, {"id": 34, "cat": "class", "ch": 5, "q": "다음 코드의 출력은?", "code": "class Vehicle:\n    def move(self):\n        print(\"이동합니다\")\nclass Car(Vehicle):\n    def move(self):\n        print(\"부릉부릉!\")\nCar().move()", "accept": ["부릉부릉!"], "m": "loose", "explain": ""}, {"id": 35, "cat": "class", "ch": 5, "q": "오버라이딩이 성립하려면 자식 메서드의 이름이 부모 메서드와 (같아야/달라야) 하나?", "code": "", "accept": ["같아야", "같다", "같음", "같아야한다", "동일", "동일해야"], "m": "ci", "explain": ""}, {"id": 36, "cat": "class", "ch": 6, "q": "print(객체) 또는 str(객체) 시 자동 호출되는 특수 메서드는?", "code": "", "accept": ["__str__"], "m": "ci", "explain": ""}, {"id": 37, "cat": "class", "ch": 6, "q": "객체1 == 객체2 비교 시 자동 호출되는 특수 메서드는?", "code": "", "accept": ["__eq__"], "m": "ci", "explain": ""}, {"id": 38, "cat": "class", "ch": 6, "q": "len(객체) 시 자동 호출되는 특수 메서드는?", "code": "", "accept": ["__len__"], "m": "ci", "explain": ""}, {"id": 39, "cat": "class", "ch": 6, "q": "다음 코드의 출력은?", "code": "class AIModel:\n    def __init__(self, name, accuracy):\n        self.name = name\n        self.accuracy = accuracy\n    def __len__(self):\n        return len(self.name)\nprint(len(AIModel(\"ResNet\", 0.92)))", "accept": ["6"], "m": "loose", "explain": "\"ResNet\"의 글자 수 6을 __len__이 반환."}, {"id": 40, "cat": "class", "ch": 6, "q": "다음 코드의 출력은?", "code": "class AIModel:\n    def __init__(self, a):\n        self.accuracy = a\n    def __eq__(self, other):\n        return self.accuracy == other.accuracy\nprint(AIModel(0.92) == AIModel(0.92))", "accept": ["True"], "m": "ci", "explain": "__eq__가 accuracy 비교로 정의되어 True."}, {"id": 41, "cat": "regex", "ch": 7, "q": "정규표현식을 사용하려면 파이썬에서 불러와야 하는 모듈의 이름은?", "code": "", "accept": ["re"], "m": "ci", "explain": ""}, {"id": 42, "cat": "regex", "ch": 7, "q": "import re를 빠뜨리고 re.search를 호출하면 발생하는 에러의 종류는?", "code": "", "accept": ["NameError"], "m": "ci", "explain": ""}, {"id": 43, "cat": "regex", "ch": 7, "q": "텍스트 어디서든 패턴의 첫 번째 발견을 찾는 함수는? (re.____)", "code": "", "accept": ["search", "re.search"], "m": "ci", "explain": ""}, {"id": 44, "cat": "regex", "ch": 7, "q": "텍스트의 '시작 부분'에서만 패턴을 확인하는 함수는? (re.____)", "code": "", "accept": ["match", "re.match"], "m": "ci", "explain": ""}, {"id": 45, "cat": "regex", "ch": 7, "q": "패턴과 일치하는 '모든' 결과를 리스트로 반환하는 함수는? (re.____)", "code": "", "accept": ["findall", "re.findall"], "m": "ci", "explain": ""}, {"id": 46, "cat": "regex", "ch": 7, "q": "다음 표현의 결과는?   re.findall(r\"\\d+\", \"나이: 25살\")", "code": "", "accept": ["['25']", "[\"25\"]"], "m": "loose", "explain": "연속 숫자 덩어리 하나 추출."}, {"id": 47, "cat": "regex", "ch": 7, "q": "다음 표현의 결과는?   re.findall(r\"\\d+\", \"에포크 1: 정확도 72%\")", "code": "", "accept": ["['1','72']", "[\"1\",\"72\"]"], "m": "loose", "explain": ""}, {"id": 48, "cat": "regex", "ch": 7, "q": "re.findall()이 반환하는 자료형(타입)은?", "code": "", "accept": ["리스트", "list"], "m": "ci", "explain": ""}, {"id": 49, "cat": "regex", "ch": 7, "q": "re.search(\"Python\",\"안녕 Python 반가워\")가 반환하는 것은 Match 객체와 None 중 무엇?", "code": "", "accept": ["Match객체", "match", "매치객체", "매치"], "m": "ci", "explain": ""}, {"id": 50, "cat": "regex", "ch": 7, "q": "re.match(\"Python\",\"안녕 Python 반가워\")의 반환값은? (시작이 Python이 아님)", "code": "", "accept": ["None"], "m": "ci", "explain": ""}, {"id": 51, "cat": "regex", "ch": 7, "q": "다음 표현의 결과는?   sum([int(n) for n in re.findall(r\"\\d+\",\"점수: 85, 92, 78\")])", "code": "", "accept": ["255"], "m": "loose", "explain": "85+92+78 = 255."}, {"id": 52, "cat": "regex", "ch": 8, "q": "줄바꿈을 제외한 '아무 문자 하나'를 의미하는 메타문자는?", "code": "", "accept": [".", "점", "마침표"], "m": "ci", "explain": ""}, {"id": 53, "cat": "regex", "ch": 8, "q": "문자열의 '시작'을 의미하는 메타문자는?", "code": "", "accept": ["^", "캐럿"], "m": "ci", "explain": ""}, {"id": 54, "cat": "regex", "ch": 8, "q": "문자열의 '끝'을 의미하는 메타문자는?", "code": "", "accept": ["$", "달러"], "m": "ci", "explain": ""}, {"id": 55, "cat": "regex", "ch": 8, "q": "다음 표현의 결과는?   re.search(r\"a.c\", \"ac\")", "code": "", "accept": ["None"], "m": "ci", "explain": ".은 반드시 1글자 요구, 사이에 없음."}, {"id": 56, "cat": "regex", "ch": 8, "q": "[abc]처럼 대괄호로 허용할 문자를 나열하는 것을 부르는 용어는?", "code": "", "accept": ["문자클래스", "characterclass"], "m": "ci", "explain": ""}, {"id": 57, "cat": "regex", "ch": 8, "q": "[0-9]와 완전히 같은 의미의 단축 표현은?", "code": "", "accept": ["\\d"], "m": "loose", "explain": ""}, {"id": 58, "cat": "regex", "ch": 8, "q": "\\w와 동일한 의미를 문자 클래스 [ ]로 풀어 쓰면?", "code": "", "accept": ["[a-zA-Z0-9_]", "[A-Za-z0-9_]"], "m": "loose", "explain": ""}, {"id": 59, "cat": "regex", "ch": 8, "q": "공백(스페이스·탭·줄바꿈)을 의미하는 단축 표현은?", "code": "", "accept": ["\\s"], "m": "loose", "explain": ""}, {"id": 60, "cat": "regex", "ch": 8, "q": "'숫자가 아닌 것'을 의미하는 단축 표현은? (대문자)", "code": "", "accept": ["\\D"], "m": "loose", "explain": "소문자=이것, 대문자=이것 아닌 것."}, {"id": 61, "cat": "regex", "ch": 8, "q": "[^0-9]에서 대괄호 안 맨 앞의 ^가 의미하는 것은?", "code": "", "accept": ["부정", "not", "제외"], "m": "ci", "explain": "대괄호 안의 ^는 NOT(부정)."}, {"id": 62, "cat": "regex", "ch": 8, "q": "다음 표현의 결과는?   re.findall(r\"[0-9]\",\"a1b2c3\")", "code": "", "accept": ["['1','2','3']", "[\"1\",\"2\",\"3\"]"], "m": "loose", "explain": ""}, {"id": 63, "cat": "regex", "ch": 8, "q": "다음 표현의 결과는?   re.findall(r\"[^0-9]\",\"a1b2c3\")", "code": "", "accept": ["['a','b','c']", "[\"a\",\"b\",\"c\"]"], "m": "loose", "explain": ""}, {"id": 64, "cat": "regex", "ch": 9, "q": "'0번 이상'을 의미하는 수량자는?", "code": "", "accept": ["*"], "m": "loose", "explain": ""}, {"id": 65, "cat": "regex", "ch": 9, "q": "'1번 이상'을 의미하는 수량자는?", "code": "", "accept": ["+"], "m": "loose", "explain": ""}, {"id": 66, "cat": "regex", "ch": 9, "q": "'0번 또는 1번'을 의미하는 수량자는?", "code": "", "accept": ["?"], "m": "loose", "explain": ""}, {"id": 67, "cat": "regex", "ch": 9, "q": "'정확히 4번 반복'을 의미하는 표현은? (예: 숫자 4자리)", "code": "", "accept": ["{4}"], "m": "loose", "explain": ""}, {"id": 68, "cat": "regex", "ch": 9, "q": "'2번 이상 4번 이하'를 의미하는 표현은?", "code": "", "accept": ["{2,4}"], "m": "loose", "explain": ""}, {"id": 69, "cat": "regex", "ch": 9, "q": "다음 표현의 결과는?   re.findall(r\"\\d+\",\"전화번호: 010-1234-5678\")", "code": "", "accept": ["['010','1234','5678']", "[\"010\",\"1234\",\"5678\"]"], "m": "loose", "explain": ""}, {"id": 70, "cat": "regex", "ch": 9, "q": "다음 표현의 결과는?   re.findall(r\"\\d{4}\",\"010-1234-5678 그리고 02-123-4567\")", "code": "", "accept": ["['1234','5678','4567']", "[\"1234\",\"5678\",\"4567\"]"], "m": "loose", "explain": "정확히 4자리만: 010(3)·02(2)·123(3)은 제외."}, {"id": 71, "cat": "regex", "ch": 9, "q": "정규식이 기본적으로 '최대한 많이' 매칭하려는 성질을 무엇이라 하나?", "code": "", "accept": ["탐욕적", "greedy", "그리디", "탐욕적매칭"], "m": "ci", "explain": ""}, {"id": 72, "cat": "regex", "ch": 9, "q": "탐욕적 매칭을 '최소' 매칭으로 바꾸려면 수량자 뒤에 무엇을 붙이나?", "code": "", "accept": ["?"], "m": "loose", "explain": ""}, {"id": 73, "cat": "regex", "ch": 9, "q": "'최소한만' 매칭하는 방식을 무엇이라 하나?", "code": "", "accept": ["게으른", "lazy", "레이지", "게으른매칭"], "m": "ci", "explain": ""}, {"id": 74, "cat": "regex", "ch": 9, "q": "다음 표현의 결과는?   re.findall(r\"<b>.+?</b>\",\"<b>굵게</b> 그리고 <b>이것도</b>\")", "code": "", "accept": ["['<b>굵게</b>','<b>이것도</b>']", "[\"<b>굵게</b>\",\"<b>이것도</b>\"]"], "m": "loose", "explain": ".+? 의 ?가 게으른 매칭 → 첫 </b>에서 멈춤."}, {"id": 75, "cat": "regex", "ch": 9, "q": "{m,n}에서 상한 n을 생략한 {3,}은 '3번 이상 ( )'를 의미한다. 빈칸은?", "code": "", "accept": ["무한대", "무제한", "무한", "끝없이"], "m": "ci", "explain": ""}, {"id": 76, "cat": "regex", "ch": 10, "q": "패턴의 일부를 묶어 따로 추출할 수 있게 하는 괄호 기호는?", "code": "", "accept": ["()", "소괄호", "괄호"], "m": "ci", "explain": ""}, {"id": 77, "cat": "regex", "ch": 10, "q": "( )로 묶은 부분을 부르는 용어는?", "code": "", "accept": ["캡처그룹", "그룹", "capturegroup"], "m": "ci", "explain": ""}, {"id": 78, "cat": "regex", "ch": 10, "q": "match 객체에서 '전체 매칭 문자열'을 꺼내는 메서드는?", "code": "", "accept": ["group(0)", "group()", ".group()", ".group(0)", "m.group(0)", "m.group()"], "m": "loose", "explain": ""}, {"id": 79, "cat": "regex", "ch": 10, "q": "match 객체에서 '모든 그룹'을 튜플로 꺼내는 메서드는?", "code": "", "accept": ["groups()", ".groups()", "m.groups()"], "m": "loose", "explain": ""}, {"id": 80, "cat": "regex", "ch": 10, "q": "'이것 또는 저것'을 의미하는 OR 연산자는?", "code": "", "accept": ["|", "파이프", "버티컬바", "수직선"], "m": "ci", "explain": ""}, {"id": 81, "cat": "regex", "ch": 10, "q": "다음 코드의 출력은?", "code": "m = re.search(r\"(\\w+)@(\\w+)\\.(\\w+)\", \"hong@gmail.com\")\nprint(m.group(1))", "accept": ["hong"], "m": "ci", "explain": "첫 번째 ( ) 그룹은 아이디 부분."}, {"id": 82, "cat": "regex", "ch": 10, "q": "위 코드에서 m.group(2)의 값은?", "code": "", "accept": ["gmail"], "m": "ci", "explain": ""}, {"id": 83, "cat": "regex", "ch": 10, "q": "위 코드에서 m.groups()의 값은?", "code": "", "accept": ["('hong','gmail','com')", "(\"hong\",\"gmail\",\"com\")"], "m": "loose", "explain": ""}, {"id": 84, "cat": "regex", "ch": 10, "q": "다음 코드의 출력은?", "code": "m = re.search(r\"(\\d{4})-(\\d{2})-(\\d{2})\", \"2024-01-15\")\nprint(m.group(2))", "accept": ["01"], "m": "loose", "explain": "그룹2는 월(01)."}, {"id": 85, "cat": "regex", "ch": 10, "q": "cat|cats처럼 쓸 때 항상 cat만 매칭되는 문제를 피하려면, 더 ( ) 패턴을 먼저 써야 한다. 빈칸은?", "code": "", "accept": ["긴", "길게", "더긴", "긴패턴"], "m": "ci", "explain": ""}, {"id": 86, "cat": "regex", "ch": 11, "q": "패턴에 맞는 부분을 다른 문자열로 교체하는 함수는? (re.____)", "code": "", "accept": ["sub", "re.sub"], "m": "ci", "explain": ""}, {"id": 87, "cat": "regex", "ch": 11, "q": "패턴을 구분자로 삼아 문자열을 자르는 함수는? (re.____)", "code": "", "accept": ["split", "re.split"], "m": "ci", "explain": ""}, {"id": 88, "cat": "regex", "ch": 11, "q": "다음 표현의 결과는?   re.sub(r\"\\d\",\"*\",\"전화번호: 010-1234-5678\")", "code": "", "accept": ["전화번호: ***-****-****"], "m": "loose", "explain": "모든 숫자를 *로 치환."}, {"id": 89, "cat": "regex", "ch": 11, "q": "다음 표현의 결과는?   re.sub(r\"\\s+\",\" \",\"홍  길동   김\")", "code": "", "accept": ["홍 길동 김"], "m": "collapse", "explain": "연속 공백을 공백 하나로 축약. (공백 위치까지 정확히!)"}, {"id": 90, "cat": "regex", "ch": 11, "q": "치환 문자열에서 '첫 번째 캡처 그룹'을 참조하는 표기는?", "code": "", "accept": ["\\1", "\\\\1"], "m": "loose", "explain": ""}, {"id": 91, "cat": "regex", "ch": 11, "q": "다음 표현의 결과는?   re.sub(r\"(\\d{4})-(\\d{2})-(\\d{2})\",r\"\\2/\\3/\\1\",\"2024-01-15\")", "code": "", "accept": ["01/15/2024"], "m": "loose", "explain": "\\2=월, \\3=일, \\1=연도 순 재배치."}, {"id": 92, "cat": "regex", "ch": 11, "q": "다음 표현의 결과는?   re.split(r\"[,;/]\",\"python,머신러닝;딥러닝/AI\")", "code": "", "accept": ["['python','머신러닝','딥러닝','AI']", "[\"python\",\"머신러닝\",\"딥러닝\",\"AI\"]"], "m": "loose", "explain": ""}, {"id": 93, "cat": "regex", "ch": 11, "q": "re.split에서 연속된 구분자 때문에 생기는 빈 문자열을 막으려면 패턴에 무엇을 붙이나?", "code": "", "accept": ["+"], "m": "loose", "explain": ""}, {"id": 94, "cat": "regex", "ch": 11, "q": "치환 문자열에서 \\1을 쓸 때 에러를 막으려면 문자열 앞에 붙이는 접두사는?", "code": "", "accept": ["r", "raw"], "m": "ci", "explain": "raw 문자열 r'\\1' 형태로 써야 함."}, {"id": 95, "cat": "regex", "ch": 12, "q": "문자열 '전체'가 패턴과 일치해야 매칭되는 함수는? (re.____)", "code": "", "accept": ["fullmatch", "re.fullmatch"], "m": "ci", "explain": ""}, {"id": 96, "cat": "regex", "ch": 12, "q": "휴대폰 앞자리 010,011,016,017,018,019를 허용하는 패턴 01[ ___ ] 의 대괄호 안 내용은?", "code": "", "accept": ["016789", "[016789]"], "m": "loose", "explain": ""}, {"id": 97, "cat": "regex", "ch": 12, "q": "다음 표현의 결과는?   bool(re.search(r\"[\\w.]+@\\w+\\.[a-zA-Z]{2,}\",\"bad@\"))", "code": "", "accept": ["False"], "m": "ci", "explain": "@ 뒤 도메인이 없어 매칭 실패 → None → False."}, {"id": 98, "cat": "regex", "ch": 12, "q": "다음 표현의 결과는?   bool(re.search(r\"[\\w.]+@\\w+\\.[a-zA-Z]{2,}\",\"user@example.com\"))", "code": "", "accept": ["True"], "m": "ci", "explain": ""}, {"id": 99, "cat": "regex", "ch": 12, "q": "[\\s-]? 는 '공백이나 하이픈이 0개 또는 ( )개'를 의미한다. 빈칸의 숫자는?", "code": "", "accept": ["1", "1개", "한"], "m": "ci", "explain": ""}, {"id": 100, "cat": "regex", "ch": 12, "q": "복잡한 패턴을 의미 단위로 나누어 접근하는 전략을 무엇이라 표현했나? ( ___ 쪼개기 )", "code": "", "accept": ["덩어리", "덩어리쪼개기", "덩어리로쪼개기"], "m": "ci", "explain": ""}]</script>
+<script>
+const ORIG = JSON.parse(document.getElementById('qdata').textContent);
+const CH_TITLES = {
+  1:"왜 클래스가 필요한가",2:"클래스 정의·인스턴스",3:"메서드와 self",
+  4:"클래스 변수 vs 인스턴스 변수",5:"상속·오버라이딩·super",6:"특수 메서드",
+  7:"정규표현식 입문(re)",8:"메타문자·문자 클래스",9:"수량자·탐욕/게으름",
+  10:"그룹화와 캡처",11:"치환과 분리",12:"종합 실전(이메일·전화)"
+};
+let QUESTIONS = [];
+let graded = false;
+let submitted = false;
+let timerInterval = null;
+let timeLeft = 0;
+let selectedTime = 3600;
+
+// ── START SCREEN ──
+document.querySelectorAll('.topt').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.topt').forEach(x=>x.classList.remove('sel'));
+    b.classList.add('sel');
+    selectedTime = parseInt(b.dataset.s);
+  });
+});
+document.getElementById('startBtn').addEventListener('click',()=>{
+  const nm = document.getElementById('snameIn').value.trim();
+  if(!nm){ document.getElementById('nameWarn').style.display='block'; return; }
+  document.getElementById('startOverlay').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('nameShow').textContent = nm;
+  QUESTIONS = shuffle([...ORIG]);
+  render();
+  if(selectedTime>0) startTimer(selectedTime);
+  else document.getElementById('timerBox').className='timer-box none';
+});
+
+// ── SHUFFLE ──
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+// ── TIMER ──
+function startTimer(sec){
+  timeLeft=sec;
+  const box=document.getElementById('timerBox');
+  box.className='timer-box';
+  updateTimerDisplay();
+  timerInterval=setInterval(()=>{
+    timeLeft--;
+    updateTimerDisplay();
+    if(timeLeft<=0){
+      clearInterval(timerInterval);
+      alert('⏰ 시간이 종료되었습니다. 자동으로 채점합니다.');
+      doGrade(true);
+    }
+  },1000);
+}
+function updateTimerDisplay(){
+  const box=document.getElementById('timerBox');
+  const m=Math.floor(Math.max(timeLeft,0)/60);
+  const s=Math.max(timeLeft,0)%60;
+  box.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  if(timeLeft<=0) box.className='timer-box crit';
+  else if(timeLeft<=300) box.className='timer-box crit';
+  else if(timeLeft<=600) box.className='timer-box warn';
+  else box.className='timer-box';
+}
+
+// ── NORM / CHECK ──
+function norm(s,m){
+  s=(s||'').trim();
+  if(m==='collapse'){ return s.replace(/\s+/g,' '); }
+  s=s.replace(/\s+/g,'');
+  if(m==='ci') s=s.toLowerCase();
+  return s;
+}
+function isCorrect(q,val){
+  if(norm(val,q.m)==='') return false;
+  const u=norm(val,q.m);
+  return q.accept.some(a=>norm(a,q.m)===u);
+}
+
+// ── RENDER ──
+const listEl=document.getElementById('list');
+function render(){
+  listEl.innerHTML='';
+  let lastCat=null;
+  QUESTIONS.forEach((q,idx)=>{
+    if(q.cat!==lastCat){
+      const part=q.cat==='class'?1:2;
+      const ph=document.createElement('div'); ph.className='part';
+      ph.innerHTML='<span class="pno">Part '+part+'</span>'+
+        '<h2>'+(part===1?'클래스 — 객체지향':'정규표현식 — 패턴 매칭')+'</h2>'+
+        '<span class="pc">'+(q.cat==='class'?40:60)+'문항</span>';
+      listEl.appendChild(ph); lastCat=q.cat;
+    }
+    const card=document.createElement('div');
+    card.className='q'; card.dataset.id=q.id; card.dataset.cat=q.cat; card.id='qc'+idx;
+    const head=document.createElement('div'); head.className='head';
+    const num=document.createElement('span'); num.className='num'; num.textContent=idx+1;
+    const badge=document.createElement('span');
+    badge.className='badge '+(q.cat==='class'?'cls':'rgx');
+    badge.textContent='Ch'+q.ch+' · '+CH_TITLES[q.ch];
+    const status=document.createElement('span'); status.className='status';
+    head.append(num,badge,status);
+    const qt=document.createElement('p'); qt.className='qtext'; qt.textContent=q.q;
+    card.append(head,qt);
+    if(q.code){ const pre=document.createElement('pre'); pre.textContent=q.code; card.appendChild(pre); }
+    const ans=document.createElement('div'); ans.className='ans';
+    const inp=document.createElement('input'); inp.type='text'; inp.autocomplete='off';
+    inp.spellcheck=false; inp.placeholder='답 입력';
+    inp.setAttribute('aria-label','문항 '+(idx+1)+' 답');
+    inp.addEventListener('input',updateProgress);
+    ans.appendChild(inp);
+    if(q.explain){
+      const hb=document.createElement('button'); hb.className='hintbtn'; hb.type='button';
+      hb.textContent='힌트';
+      const hint=document.createElement('div'); hint.className='hint'; hint.textContent='💡 '+q.explain;
+      hb.addEventListener('click',()=>hint.classList.toggle('show'));
+      ans.appendChild(hb); card.appendChild(ans); card.appendChild(hint);
+    } else { card.appendChild(ans); }
+    const res=document.createElement('div'); res.className='result'; card.appendChild(res);
+    listEl.appendChild(card);
+  });
+  updateProgress();
+}
+
+function inputs(){ return [...listEl.querySelectorAll('.q input')]; }
+function updateProgress(){
+  const ins=inputs();
+  const answered=ins.filter(i=>i.value.trim()!=='').length;
+  document.getElementById('pbar').style.width=answered+'%';
+  document.getElementById('pcount').textContent=answered+' / 100';
+  if(!submitted) document.getElementById('leftnote').textContent='미응답 '+(100-answered)+'문항';
+}
+
+// ── GRADE ──
+function doGrade(force){
+  if(submitted) return;
+  if(!force){
+    const answered=inputs().filter(i=>i.value.trim()!=='').length;
+    if(answered<100 && !confirm('아직 '+(100-answered)+'문항이 비어 있어요. 그래도 채점할까요?')) return;
+  }
+  if(timerInterval){ clearInterval(timerInterval); timerInterval=null; }
+  graded=true;
+  let score=0;
+  const perCh={}, wrong=[];
+  const ins=inputs();
+  QUESTIONS.forEach((q,idx)=>{
+    const card=document.getElementById('qc'+idx);
+    const inp=ins[idx];
+    const res=card.querySelector('.result');
+    const status=card.querySelector('.status');
+    const ok=isCorrect(q,inp.value);
+    perCh[q.ch]=perCh[q.ch]||{ok:0,tot:0,cat:q.cat}; perCh[q.ch].tot++;
+    card.classList.remove('correct','wrong');
+    if(ok){
+      score++; perCh[q.ch].ok++;
+      card.classList.add('correct'); status.textContent='정답 ✓';
+      res.classList.remove('show');
+    } else {
+      wrong.push(idx+1);
+      card.classList.add('wrong'); status.textContent='오답 ✕';
+      const acc=q.accept[0];
+      res.innerHTML='<span class="label">정답:</span> <code>'+
+        acc.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</code>'+
+        (q.explain?'<br><span class="label">해설:</span> '+
+          q.explain.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'');
+      res.classList.add('show');
+    }
+  });
+  lockInputs();
+  showSummary(score,perCh,wrong);
+  const sd=document.getElementById('scoreDisp');
+  sd.textContent=score+'/100점'; sd.classList.add('show');
+  document.getElementById('leftnote').textContent='채점 완료 · '+score+'점';
+  document.getElementById('summary').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function lockInputs(){
+  submitted=true;
+  inputs().forEach(i=>{ i.disabled=true; });
+  document.getElementById('gradeBtn').disabled=true;
+  document.getElementById('gradeBtn').textContent='제출 완료';
+  document.getElementById('subBadge').classList.add('show');
+  document.getElementById('timerBox').className='timer-box none';
+}
+
+function showSummary(score,perCh,wrong){
+  document.getElementById('sscoretxt').textContent=score;
+  const clsOk=Object.entries(perCh).filter(([,c])=>c.cat==='class').reduce((a,[,c])=>a+c.ok,0);
+  const rgxOk=Object.entries(perCh).filter(([,c])=>c.cat==='regex').reduce((a,[,c])=>a+c.ok,0);
+  const rows=[['클래스(40)',clsOk,40],['정규표현식(60)',rgxOk,60]];
+  for(let ch=1;ch<=12;ch++){ if(perCh[ch]) rows.push(['Ch'+ch,perCh[ch].ok,perCh[ch].tot]); }
+  const bars=document.getElementById('bars'); bars.innerHTML='';
+  rows.forEach(([nm,ok,tot])=>{
+    const pct=Math.round(ok/tot*100);
+    const r=document.createElement('div'); r.className='bar-row';
+    r.innerHTML='<span class="nm">'+nm+'</span>'+
+      '<span class="bar-track"><i style="width:'+pct+'%"></i></span>'+
+      '<span class="vl">'+ok+'/'+tot+'</span>';
+    bars.appendChild(r);
+  });
+  document.getElementById('wrongtxt').innerHTML=wrong.length
+    ?'<b>틀린 문항('+wrong.length+'):</b> '+wrong.join(', ')
+    :'<b>전 문항 정답입니다. 완벽해요! 🎉</b>';
+  const nm=(document.getElementById('nameShow').textContent||'').trim();
+  document.getElementById('copybox').value=
+    '['+nm+'] 점수 '+score+'/100 · 클래스 '+clsOk+'/40 · 정규식 '+rgxOk+'/60'+
+    (wrong.length?' · 오답 '+wrong.join(','):' · 만점');
+  document.getElementById('summary').classList.add('show');
+}
+
+// ── FILTERS ──
+let curFilter='all';
+document.querySelectorAll('.fbtn').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.fbtn').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true'); curFilter=b.dataset.f; applyFilter();
+  });
+});
+function applyFilter(){
+  const ins=inputs();
+  QUESTIONS.forEach((_q,idx)=>{
+    const card=document.getElementById('qc'+idx);
+    const q=QUESTIONS[idx];
+    let show=true;
+    if(curFilter==='class') show=q.cat==='class';
+    else if(curFilter==='regex') show=q.cat==='regex';
+    else if(curFilter==='todo') show=ins[idx].value.trim()==='';
+    else if(curFilter==='wrong') show=graded&&card.classList.contains('wrong');
+    card.classList.toggle('hidden',!show);
+  });
+}
+
+// ── BUTTONS ──
+document.getElementById('gradeBtn').addEventListener('click',()=>doGrade(false));
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  if(!confirm('모든 답안을 지우고 시작 화면으로 돌아갈까요?')) return;
+  if(timerInterval){ clearInterval(timerInterval); timerInterval=null; }
+  graded=false; submitted=false; QUESTIONS=[];
+  document.getElementById('app').style.display='none';
+  document.getElementById('startOverlay').style.display='flex';
+  document.getElementById('snameIn').value='';
+  document.getElementById('summary').classList.remove('show');
+  document.getElementById('scoreDisp').classList.remove('show');
+  document.getElementById('scoreDisp').textContent='';
+  document.getElementById('subBadge').classList.remove('show');
+  const gb=document.getElementById('gradeBtn');
+  gb.disabled=false; gb.textContent='채점하기';
+  curFilter='all';
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+</script>
+</body>
+</html>
